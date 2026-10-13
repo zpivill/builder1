@@ -9,6 +9,13 @@ Stage.BALL_RADIUS = 0.7
 Stage.BALL_SPOT = Vector3.new(0, Stage.BALL_RADIUS, config.penaltyDistance)
 Stage.KEEPER_Z = 1.5
 
+-- Full pitch, scaled from a real 105 x 68 m pitch so the 24-stud goal and the
+-- 36-stud penalty spot match (about 3.28 studs per metre). The near goal line
+-- is z = 0; the pitch runs to z = PITCH_LENGTH.
+Stage.PITCH_HALF_WIDTH = 111
+Stage.PITCH_LENGTH = 344
+Stage.HALFWAY_Z = Stage.PITCH_LENGTH / 2
+
 -- Height of the HumanoidRootPart centre above the ground for a character.
 function Stage.rootHeight(character: Model): number
 	local humanoid = character:FindFirstChildOfClass("Humanoid")

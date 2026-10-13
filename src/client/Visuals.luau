@@ -28,14 +28,6 @@ local function animate(info: TweenInfo, onStep: (alpha: number) -> ()): Tween
 	return tween
 end
 
--- Moves a model smoothly from its current pivot to `goal`.
-local function tweenPivot(model: Model, info: TweenInfo, goal: CFrame): Tween
-	local from = model:GetPivot()
-	return animate(info, function(alpha)
-		model:PivotTo(from:Lerp(goal, alpha))
-	end)
-end
-
 -- Point at depth `z` on the straight line from the spot through the goal-plane
 -- point (x, y). Keeps misses on the path ShotPath aimed them along, so wide
 -- shots pass outside the posts and high shots pass over the bar.
@@ -117,8 +109,9 @@ function Visuals.playKick(result: any, shooterCharacter: Model?, keeperCharacter
 	local shooterRig = rigFor(shooterCharacter)
 	local keeperRig = rigFor(keeperCharacter)
 
+	local scored = result.outcome == "GOAL"
 	if shooterRig then
-		shooterRig:kick(Stage.shooterStrike(shooterCharacter :: Model))
+		shooterRig:kick(Stage.shooterStrike(shooterCharacter :: Model), scored)
 	end
 	task.wait(config.runUpTime)
 
@@ -134,7 +127,7 @@ function Visuals.playKick(result: any, shooterCharacter: Model?, keeperCharacter
 	if keeperRig then
 		local _, diveY = ShotPath.aimPoint(result.dive.column, result.dive.height)
 		local reach = Vector3.new(ShotPath.diveX(result.dive.column), diveY, Stage.KEEPER_Z)
-		keeperRig:dive(reach, result.dive.column, result.dive.height)
+		keeperRig:dive(reach, result.dive.column, result.dive.height, not scored)
 	end
 
 	-- Ball flies along the shot line, spinning forward.
@@ -146,10 +139,52 @@ function Visuals.playKick(result: any, shooterCharacter: Model?, keeperCharacter
 	end)
 	tween.Completed:Wait()
 
-	if result.outcome == "POST" or result.outcome == "SAVED" then
-		-- Rebound back toward the pitch.
-		local bounce = CFrame.new(finish.X * 1.2, Stage.BALL_RADIUS, 8)
-		tweenPivot(ball, TweenInfo.new(0.5, Enum.EasingStyle.Quad), bounce)
+	task.spawn(Visuals.settleBall, result.outcome, finish)
+end
+
+-- Ball flight in a parabola from `from` to `to` peaking `height` above the
+-- straight line, spinning about `axis`. Yields until it lands.
+local function hop(from: Vector3, to: Vector3, height: number, duration: number, spinTurns: number)
+	local axis = (to - from).Magnitude > 0.01 and (to - from).Unit:Cross(Vector3.yAxis) or Vector3.xAxis
+	local tween = animate(TweenInfo.new(duration, Enum.EasingStyle.Linear), function(alpha)
+		local p = from:Lerp(to, alpha) + Vector3.yAxis * (4 * height * alpha * (1 - alpha))
+		local spin = if axis.Magnitude > 0.01
+			then CFrame.fromAxisAngle(axis.Unit, -math.pi * 2 * spinTurns * alpha)
+			else CFrame.identity
+		ball:PivotTo(CFrame.new(p) * spin)
+	end)
+	tween.Completed:Wait()
+end
+
+-- After the ball reaches `finish`: drop, bounce and roll until it rests on
+-- the ground, so it never hangs in the air.
+function Visuals.settleBall(outcome: string, finish: Vector3)
+	local r = Stage.BALL_RADIUS
+	local function ground(x: number, z: number): Vector3
+		return Vector3.new(x, r, z)
+	end
+	local rand = Random.new()
+	if outcome == "GOAL" then
+		-- Drops off the back of the net and rolls to a stop inside the goal.
+		local landing = ground(finish.X * 0.9, -2.6)
+		hop(finish, landing, 0.2, 0.35, 0.3)
+		hop(landing, ground(landing.X * 0.95, -3.0), 0.35, 0.3, 0.4)
+		hop(ground(landing.X * 0.95, -3.0), ground(landing.X * 0.9, -3.3), 0, 0.5, 0.3)
+	elseif outcome == "SAVED" or outcome == "POST" then
+		-- Rebounds back out onto the pitch, bounces and rolls away.
+		local first = ground(finish.X * 1.15 + rand:NextNumber(-2, 2), 7 + rand:NextNumber(0, 3))
+		hop(finish, first, 1.5, 0.55, 1.5)
+		local second = ground(first.X * 1.1, first.Z + 4)
+		hop(first, second, 0.6, 0.35, 1)
+		hop(second, ground(second.X * 1.05, second.Z + 4), 0, 0.7, 1)
+	else
+		-- Misses carry on behind the goal, bounce and roll out.
+		local away = (finish - Stage.BALL_SPOT).Unit
+		local first = ground(finish.X + away.X * 8, finish.Z + away.Z * 8)
+		hop(finish, first, 0.5, 0.4, 1)
+		local second = ground(first.X + away.X * 6, first.Z + away.Z * 6)
+		hop(first, second, 0.8, 0.4, 1)
+		hop(second, ground(second.X + away.X * 4, second.Z + away.Z * 4), 0, 0.7, 0.8)
 	end
 end
 

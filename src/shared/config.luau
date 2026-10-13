@@ -32,7 +32,7 @@ local config = {
 	runUpTime = 0.7,
 	ballFlightTime = 0.6,
 	keeperDiveTime = 0.45,
-	resultHoldTime = 1.6,
+	resultHoldTime = 2.6,
 	powerBarCyclesPerSecond = 0.8,
 
 	-- In Studio only, a bot fills the second slot so one person can test.

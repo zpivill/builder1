@@ -7,14 +7,18 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Ambience = require("@self/Ambience")
 local Assets = require("@self/Assets")
 local Duel = require(ReplicatedStorage.Shared.logic.Duel)
 local Pitch = require("@self/Pitch")
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Stadium = require("@self/Stadium")
 local Stage = require(ReplicatedStorage.Shared.Stage)
 local config = require(ReplicatedStorage.Shared.config)
 
+Ambience.apply()
 Pitch.build(Assets.load())
+Stadium.build()
 local remotes = Remotes.get()
 
 -- Time the clients need to show a kick before the next one starts.
