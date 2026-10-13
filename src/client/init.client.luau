@@ -4,11 +4,13 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local CameraDirector = require("@self/CameraDirector")
 local Hud = require("@self/Hud")
 local People = require("@self/People")
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local ResultScreen = require("@self/ResultScreen")
 local Visuals = require("@self/Visuals")
+local Stage = require(ReplicatedStorage.Shared.Stage)
 local config = require(ReplicatedStorage.Shared.config)
 
 local remotes = Remotes.get()
@@ -72,7 +74,20 @@ local function updateStatus()
 	Hud.setCentre(centre)
 end
 
+-- Where the shooter and keeper stand this kick, for the cinematic cameras.
+local function sceneFor(roles: any): CameraDirector.Scene
+	local shooter = roles and current.characters[roles.shooter]
+	local keeper = roles and current.characters[roles.keeper]
+	return {
+		shooter = if shooter
+			then Stage.shooterHome(shooter).Position
+			else Stage.BALL_SPOT + Vector3.new(-1.6, 2.3, 4.5),
+		keeper = if keeper then Stage.keeperHome(keeper).Position else Vector3.new(0, 3, Stage.KEEPER_Z),
+	}
+end
+
 local function showFinished()
+	CameraDirector.stop()
 	Hud.closeChoice()
 	Hud.setStatus("")
 	Hud.setCentre("")
@@ -105,6 +120,7 @@ local function applyState()
 		Hud.setStatus("")
 		Hud.setCentre("Waiting for an opponent...")
 		Visuals.setScene(current.characters, nil)
+		CameraDirector.stop()
 		Visuals.setCamera("shooter")
 	elseif phase == "choosing" then
 		if current.deadline ~= shownDeadline then
@@ -118,7 +134,8 @@ local function applyState()
 			end
 			Visuals.setScene(current.characters, current.roles)
 			local role = myRole()
-			Visuals.setCamera(if role == "keeper" then "keeper" else "shooter")
+			-- Cinematic shots while both players choose.
+			CameraDirector.start(sceneFor(current.roles))
 			if role and not current.chosen[current.you] then
 				Hud.openChoice(role, current.deadline)
 			end
@@ -139,6 +156,9 @@ local function playNext()
 		Hud.closeChoice()
 		Hud.setCentre("")
 		Hud.showResult("")
+		-- Back to the player's own view for the kick itself.
+		CameraDirector.stop()
+		Visuals.setCamera(if current.you == result.keeper then "keeper" else "shooter")
 		Visuals.playKick(result, current.characters[result.side], current.characters[result.keeper])
 
 		-- Green when the result is good for you (your goal, or your save).
