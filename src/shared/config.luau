@@ -29,6 +29,16 @@ local config = {
 	aiPowerMin = 55,
 	aiPowerMax = 85,
 
+	-- World and timing (studs / seconds). Goal line is at z = 0, shooter at +z.
+	goalWidth = 24,
+	goalHeight = 8,
+	penaltyDistance = 36,
+	ballFlightTime = 0.6,
+	keeperDiveTime = 0.35,
+	resultHoldTime = 1.4,
+	aiKickDelay = 2.5,
+	powerBarCyclesPerSecond = 0.8,
+
 	shooters = {
 		{ name = "Striker", accuracy = 60, strength = 85 },
 		{ name = "Playmaker", accuracy = 85, strength = 55 },
