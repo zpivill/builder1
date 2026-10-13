@@ -109,6 +109,7 @@ end
 local function row(parent: Instance, kind: "shooter" | "keeper", title: string, list: { any }, y: number)
 	text(parent, title, UDim2.fromOffset(200, 20), UDim2.fromOffset(20, y), 16)
 	local holder = Instance.new("Frame")
+	holder.Name = if kind == "shooter" then "Shooters" else "Keepers"
 	holder.BackgroundTransparency = 1
 	holder.Position = UDim2.fromOffset(20, y + 24)
 	holder.Size = UDim2.new(1, -40, 0, 102)
