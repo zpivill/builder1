@@ -5,6 +5,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CameraDirector = require("@self/CameraDirector")
+local Cutscene = require("@self/Cutscene")
 local Hud = require("@self/Hud")
 local People = require("@self/People")
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -26,6 +27,7 @@ local current: any = { phase = "waiting", names = {}, characters = {}, chosen = 
 local shownDeadline = 0 -- deadline of the kick whose controls were last set up
 local queue = {}
 local playing = false
+local SLOW_MOTION = 2.5 -- the deciding kick plays this many times slower
 
 local function other(side: string): string
 	return if side == "p1" then "p2" else "p1"
@@ -130,7 +132,9 @@ local function applyState()
 			Hud.showResult("")
 			local state = current.state
 			if state and state.taken.p1 + state.taken.p2 == 0 then
+				-- A new match: clear the dots and put the teams back in line.
 				Hud.clearDots()
+				People.regroup()
 			end
 			Visuals.setScene(current.characters, current.roles)
 			local role = myRole()
@@ -146,6 +150,17 @@ local function applyState()
 	end
 end
 
+-- The dramatic ending after the deciding kick, then back to the HUD.
+local function playEnding(winnerSide: string)
+	local loserSide = other(winnerSide)
+	local winner = current.characters[winnerSide]
+	local loser = current.characters[loserSide]
+	Hud.setVisible(false)
+	Cutscene.play(winnerSide, winner, loser, Visuals.rigFor(winner), Visuals.rigFor(loser), People)
+	Hud.setVisible(true)
+	Hud.showResult("")
+end
+
 local function playNext()
 	if playing then
 		return
@@ -159,7 +174,13 @@ local function playNext()
 		-- Back to the player's own view for the kick itself.
 		CameraDirector.stop()
 		Visuals.setCamera(if current.you == result.keeper then "keeper" else "shooter")
-		Visuals.playKick(result, current.characters[result.side], current.characters[result.keeper])
+		local deciding = result.summary ~= nil
+		Visuals.playKick(
+			result,
+			current.characters[result.side],
+			current.characters[result.keeper],
+			if deciding then SLOW_MOTION else 1
+		)
 
 		-- Green when the result is good for you (your goal, or your save).
 		local you = current.you
@@ -171,7 +192,12 @@ local function playNext()
 		end
 		Hud.addDot(result.side, result.outcome)
 		Hud.setScore(result.state, current.names, current.you)
-		task.wait(config.resultHoldTime)
+		if result.summary and result.summary.winner then
+			task.wait(1)
+			playEnding(result.summary.winner)
+		else
+			task.wait(config.resultHoldTime)
+		end
 	end
 	playing = false
 	applyState()

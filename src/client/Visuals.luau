@@ -49,6 +49,11 @@ local function rigFor(character: Model?): any
 	return rig
 end
 
+-- The pose rig for an avatar (created on first use), or nil if it has no root.
+function Visuals.rigFor(character: Model?): any
+	return rigFor(character)
+end
+
 function Visuals.init()
 	-- Mesh models loaded by the server (src/server/Assets.luau).
 	local assets = ReplicatedStorage:WaitForChild("Assets")
@@ -103,17 +108,19 @@ function Visuals.setScene(characters: { [string]: Model? }, roles: { shooter: st
 end
 
 -- Animates one resolved kick: run-up, strike, keeper dive and ball flight.
--- Yields until the ball has landed.
-function Visuals.playKick(result: any, shooterCharacter: Model?, keeperCharacter: Model?)
+-- Yields until the ball has landed. `slow` > 1 plays it in slow motion
+-- (used for the deciding kick).
+function Visuals.playKick(result: any, shooterCharacter: Model?, keeperCharacter: Model?, slow: number?)
+	local factor = slow or 1
 	ball:PivotTo(CFrame.new(Stage.BALL_SPOT))
 	local shooterRig = rigFor(shooterCharacter)
 	local keeperRig = rigFor(keeperCharacter)
-
 	local scored = result.outcome == "GOAL"
 	if shooterRig then
 		shooterRig:kick(Stage.shooterStrike(shooterCharacter :: Model), scored)
+		shooterRig.speed = 1 / factor
 	end
-	task.wait(config.runUpTime)
+	task.wait(config.runUpTime * factor)
 
 	local x, y = ShotPath.target(result.shot, result.outcome)
 	local z = if result.outcome == "GOAL"
@@ -128,16 +135,23 @@ function Visuals.playKick(result: any, shooterCharacter: Model?, keeperCharacter
 		local _, diveY = ShotPath.aimPoint(result.dive.column, result.dive.height)
 		local reach = Vector3.new(ShotPath.diveX(result.dive.column), diveY, Stage.KEEPER_Z)
 		keeperRig:dive(reach, result.dive.column, result.dive.height, not scored)
+		keeperRig.speed = 1 / factor
 	end
 
 	-- Ball flies along the shot line, spinning forward.
 	local start = Stage.BALL_SPOT
-	local flight = TweenInfo.new(config.ballFlightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local flight = TweenInfo.new(config.ballFlightTime * factor, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	local tween = animate(flight, function(alpha)
 		local spin = CFrame.Angles(-math.pi * 2 * BALL_SPIN_TURNS * alpha, 0, 0)
 		ball:PivotTo(CFrame.new(start:Lerp(finish, alpha)) * spin)
 	end)
 	tween.Completed:Wait()
+	if shooterRig then
+		shooterRig.speed = 1
+	end
+	if keeperRig then
+		keeperRig.speed = 1
+	end
 
 	task.spawn(Visuals.settleBall, result.outcome, finish)
 end

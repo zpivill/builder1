@@ -61,6 +61,20 @@ the same time. Players appear as their own Roblox avatars.
   avatars are only posed by AvatarRig.
 - Avatars are anchored and placed by the server; clients pose them locally.
 
+## Presentation
+- Stadium: full pitch markings scaled from a real pitch, stepped stands with
+  roofs, ad boards, floodlights, late-afternoon lighting.
+- Each player's 5 teammates (from their friends list, random users filling
+  gaps) stand arm-in-arm on the halfway line; 60 random users cheer in the
+  stands. Every extra avatar is a different user and looks different.
+- After each kick the ball always comes to rest; the shooter and keeper
+  react (celebrate, hands on head, fist pump, kneel) and ease back.
+- While players choose, cinematic camera shots cycle and blend; the kick
+  itself is shown from the player's own view.
+- The deciding kick plays in slow motion; then a cutscene: flash and screen
+  shake, the winner sprints to meet their teammates, the loser collapses,
+  the crowd erupts, then the result screen.
+
 ## Out of scope for v1
 Saving, progression, more than 2 players per server, sound, multiple stadiums,
 avatar-specific scaling of animations (poses assume a standard-sized R15).

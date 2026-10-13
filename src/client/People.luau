@@ -59,9 +59,34 @@ local function track(model: Instance)
 	end)
 end
 
--- Crowd goes wild (after a goal).
-function People.cheer()
-	excitedUntil = os.clock() + EXCITED_TIME
+-- Crowd goes wild (after a goal), for `duration` seconds.
+function People.cheer(duration: number?)
+	excitedUntil = math.max(excitedUntil, os.clock() + (duration or EXCITED_TIME))
+end
+
+-- A team sprints to `meet` and celebrates around it (end of the match).
+function People.rush(side: string, meet: Vector3, duration: number)
+	local i = 0
+	for model, rig in rigs do
+		if model:GetAttribute("Side") == side then
+			i += 1
+			local angle = i * (math.pi * 2 / 5)
+			local spot = meet + Vector3.new(math.cos(angle) * 3, 0, math.sin(angle) * 3)
+			local home = rig.home :: CFrame
+			local at = Vector3.new(spot.X, home.Position.Y, spot.Z)
+			rig:runTo(CFrame.lookAt(at, Vector3.new(meet.X, at.Y, meet.Z)), duration)
+		end
+	end
+end
+
+-- Puts teammates back in their lines (for a rematch).
+function People.regroup()
+	for model, rig in rigs do
+		local home = model:GetAttribute("Home")
+		if typeof(home) == "CFrame" then
+			rig:huddle(home, model:GetAttribute("TowardCentreX"), model:GetAttribute("AwayX"))
+		end
+	end
 end
 
 function People.init()

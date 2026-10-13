@@ -114,6 +114,8 @@ function AvatarRig.new(character: Model)
 	end)
 	self.home = if self.root then self.root.CFrame else CFrame.identity
 	self.clock = 0
+	self.speed = 1 -- below 1 plays everything in slow motion
+	self.standY = self.home.Position.Y -- root height when standing
 	self.current = nil :: Pose?
 	self:_play({
 		{
@@ -143,6 +145,7 @@ end
 -- Tracks ---------------------------------------------------------------------
 
 function AvatarRig:_play(track: { Step })
+	self.speed = 1 -- a new action always plays at normal speed
 	self.track = track
 	self.trackTime = 0
 	self.trackFrom = self.current
@@ -158,6 +161,7 @@ end
 
 function AvatarRig:stand(home: CFrame)
 	self.home = home
+	self.standY = home.Position.Y
 	self:_play({
 		{
 			pose = function()
@@ -171,6 +175,7 @@ end
 
 function AvatarRig:keep(home: CFrame)
 	self.home = home
+	self.standY = home.Position.Y
 	self:_play({
 		{
 			pose = function()
@@ -186,6 +191,7 @@ end
 -- rest of the team. towardX/awayX are the neighbours' x positions (nil at an end).
 function AvatarRig:huddle(home: CFrame, towardX: number?, awayX: number?)
 	self.home = home
+	self.standY = home.Position.Y
 	self:_play({
 		{
 			pose = function()
@@ -194,6 +200,78 @@ function AvatarRig:huddle(home: CFrame, towardX: number?, awayX: number?)
 			blend = 0,
 			duration = math.huge,
 		},
+	})
+end
+
+-- Upright frame where the avatar is now (even if lying down), facing the
+-- same way horizontally.
+function AvatarRig:_uprightHere(): CFrame
+	local now = if self.current then self.current.root else self.home
+	local look = now.LookVector
+	local flat = Vector3.new(look.X, 0, look.Z)
+	if flat.Magnitude < 0.1 then
+		flat = self.home.LookVector
+	end
+	local p = Vector3.new(now.Position.X, self.standY, now.Position.Z)
+	return CFrame.lookAt(p, p + flat)
+end
+
+-- Sprint from wherever the avatar is to `target`, then celebrate there.
+function AvatarRig:runTo(target: CFrame, duration: number)
+	local start = self:_uprightHere()
+	-- Face the direction of travel while running.
+	local flat = Vector3.new(target.Position.X, start.Position.Y, target.Position.Z)
+	local heading = if (flat - start.Position).Magnitude > 0.1 then CFrame.lookAt(start.Position, flat) else start
+	local from = CFrame.new(start.Position) * heading.Rotation
+	local to = CFrame.new(target.Position) * heading.Rotation
+	self.home = target
+	self:_play({
+		{
+			pose = function(t)
+				return self:_runPose(from, to, math.clamp(t / duration, 0, 1))
+			end,
+			blend = 0.2,
+			duration = duration,
+		},
+		{
+			pose = function(t)
+				return self:_celebratePose(target, t)
+			end,
+			blend = 0.4,
+			duration = math.huge,
+		},
+	})
+end
+
+function AvatarRig:celebrate(at: CFrame)
+	self.home = at
+	self:_play({
+		{
+			pose = function(t)
+				return self:_celebratePose(at, t)
+			end,
+			blend = 0.3,
+			duration = math.huge,
+		},
+	})
+end
+
+-- Sink to the knees, then fall face down on the pitch and stay there.
+function AvatarRig:collapse()
+	local facing = self:_uprightHere()
+	local start = facing
+	local kneel = self:_kneelReaction(facing, start.Position.X, false, 0)
+	self:_play({
+		{
+			pose = function(t)
+				local pose = self:_kneelReaction(facing, start.Position.X, false, t)
+				pose.root = kneel.root
+				return pose
+			end,
+			blend = 0.6,
+			duration = 1.2,
+		},
+		{ pose = self:_pronePose(facing), blend = 0.7, duration = math.huge },
 	})
 end
 
@@ -447,6 +525,38 @@ function AvatarRig:_huddlePose(home: CFrame, towardX: number?, awayX: number?): 
 	return pose
 end
 
+-- Running from `from` to `to` (u = 0..1) with arms pumping.
+function AvatarRig:_runPose(from: CFrame, to: CFrame, u: number): Pose
+	local stride = math.sin(self.clock * 14)
+	local root = from:Lerp(to, u) + Vector3.yAxis * (0.15 * math.abs(stride))
+	local pose: Pose = { root = root, joints = { Waist = angles(-12), Neck = angles(8) }, hands = {} }
+	for side, s in SIDES do
+		local swing = stride * s
+		pose.joints[side .. "Hip"] = angles(45 * swing)
+		pose.joints[side .. "Knee"] = angles(-30 - 50 * math.max(0, -swing))
+		pose.joints[side .. "Elbow"] = angles(80)
+		pose.hands[side] = root * Vector3.new(s * 1.1, -0.9, 1.0 * swing)
+	end
+	return pose
+end
+
+-- Face down on the pitch, arms out past the head.
+function AvatarRig:_pronePose(facing: CFrame): Pose
+	local forward = facing.LookVector
+	local flatForward = Vector3.new(forward.X, 0, forward.Z).Unit
+	local pos = Vector3.new(facing.Position.X, 0.6, facing.Position.Z) + flatForward * 1.5
+	local right = flatForward:Cross(Vector3.yAxis)
+	-- Head points along flatForward, back faces the sky.
+	local root = CFrame.fromMatrix(pos, right, flatForward, Vector3.yAxis)
+	local pose: Pose = { root = root, joints = { Neck = angles(-20) }, hands = {} }
+	for side, s in SIDES do
+		pose.joints[side .. "Elbow"] = angles(25)
+		pose.joints[side .. "Hip"] = angles(5)
+		pose.hands[side] = pos + flatForward * 2.6 + right * (s * 1.0) + Vector3.yAxis * -0.3
+	end
+	return pose
+end
+
 -- Arms up and bouncing on the spot.
 function AvatarRig:_celebratePose(at: CFrame, t: number): Pose
 	local hop = 0.3 * math.abs(math.sin(t * 7))
@@ -537,6 +647,7 @@ end
 -- Applying -------------------------------------------------------------------
 
 function AvatarRig:_step(dt: number)
+	dt *= self.speed
 	self.clock += dt
 	self.trackTime += dt
 	if self.root and self.root.Parent then
