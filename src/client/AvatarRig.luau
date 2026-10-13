@@ -182,6 +182,21 @@ function AvatarRig:keep(home: CFrame)
 	})
 end
 
+-- Stand in a line with arms over the neighbours' shoulders, swaying with the
+-- rest of the team. towardX/awayX are the neighbours' x positions (nil at an end).
+function AvatarRig:huddle(home: CFrame, towardX: number?, awayX: number?)
+	self.home = home
+	self:_play({
+		{
+			pose = function()
+				return self:_huddlePose(home, towardX, awayX)
+			end,
+			blend = 0,
+			duration = math.huge,
+		},
+	})
+end
+
 -- Run up from home, strike the ball at `strike`, then react once the ball
 -- arrives. `scored` is whether the kick went in.
 function AvatarRig:kick(strike: CFrame, scored: boolean)
@@ -413,6 +428,23 @@ function AvatarRig:_standReaction(home: CFrame, saved: boolean, t: number): Pose
 		return pose
 	end
 	return self:_despairPose(home, t)
+end
+
+function AvatarRig:_huddlePose(home: CFrame, towardX: number?, awayX: number?): Pose
+	-- os.clock keeps the whole team swaying in time.
+	local sway = math.sin(os.clock() * 1.3)
+	local pose = self:_standPose(home * CFrame.Angles(0, 0, math.rad(3) * sway))
+	local x, y, z = home.Position.X, home.Position.Y, home.Position.Z
+	for _, neighbourX in { towardX, awayX } do
+		if neighbourX then
+			local dir = if neighbourX > x then 1 else -1
+			-- Facing -Z, the body's right is +X.
+			local side = if dir > 0 then "Right" else "Left"
+			pose.hands[side] = Vector3.new(neighbourX + dir * 0.7, y + 1.3, z + 0.35)
+			pose.joints[side .. "Elbow"] = angles(20)
+		end
+	end
+	return pose
 end
 
 -- Arms up and bouncing on the spot.

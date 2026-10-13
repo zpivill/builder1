@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local Ambience = require("@self/Ambience")
 local Assets = require("@self/Assets")
 local Duel = require(ReplicatedStorage.Shared.logic.Duel)
+local People = require("@self/People")
 local Pitch = require("@self/Pitch")
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Stadium = require("@self/Stadium")
@@ -18,7 +19,7 @@ local config = require(ReplicatedStorage.Shared.config)
 
 Ambience.apply()
 Pitch.build(Assets.load())
-Stadium.build()
+People.init(Stadium.build())
 local remotes = Remotes.get()
 
 -- Time the clients need to show a kick before the next one starts.
@@ -202,6 +203,9 @@ end
 
 local function startMatch()
 	duel = Duel.new(DateTime.now().UnixTimestampMillis % 2147483646 + 1)
+	for _, side in SIDES do
+		People.setTeam(side, slots[side].player)
+	end
 	opponentLeft = false
 	for _, side in SIDES do
 		slots[side].rematch = slots[side].player == nil -- the bot always agrees

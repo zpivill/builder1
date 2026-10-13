@@ -5,6 +5,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Hud = require("@self/Hud")
+local People = require("@self/People")
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local ResultScreen = require("@self/ResultScreen")
 local Visuals = require("@self/Visuals")
@@ -145,6 +146,9 @@ local function playNext()
 		local scored = result.outcome == "GOAL"
 		local good = if you == result.side then scored elseif you == result.keeper then not scored else scored
 		Hud.showResult(RESULT_TEXT[result.outcome], if good then Hud.GOAL_COLOR else Hud.FAIL_COLOR)
+		if scored then
+			People.cheer()
+		end
 		Hud.addDot(result.side, result.outcome)
 		Hud.setScore(result.state, current.names, current.you)
 		task.wait(config.resultHoldTime)
@@ -154,6 +158,7 @@ local function playNext()
 end
 
 Visuals.init()
+task.spawn(People.init)
 Hud.init(function(choice)
 	remotes.Choose:FireServer(choice)
 end)
