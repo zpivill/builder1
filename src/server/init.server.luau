@@ -5,6 +5,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Assets = require("@self/Assets")
 local Lineup = require(ReplicatedStorage.Shared.logic.Lineup)
 local Pitch = require("@self/Pitch")
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -14,7 +15,7 @@ local config = require(ReplicatedStorage.Shared.config)
 -- No avatar: the client uses a fixed camera behind the penalty spot.
 Players.CharacterAutoLoads = false
 
-Pitch.build()
+Pitch.build(Assets.load())
 local remotes = Remotes.get()
 
 -- Time the client needs to show one kick before the next can start.

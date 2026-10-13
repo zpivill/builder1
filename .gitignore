@@ -11,3 +11,6 @@ build/
 *.pem
 secrets/
 .claude/settings.local.json
+
+# Blender backup files
+*.blend1

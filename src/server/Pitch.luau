@@ -1,12 +1,11 @@
--- Builds the pitch and goal from simple parts. Goal line at z = 0, centred on
--- x = 0; the penalty spot is at +z.
+-- Builds the pitch from simple parts and places the goal mesh model. Goal line
+-- at z = 0, centred on x = 0; the penalty spot is at +z.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local config = require(ReplicatedStorage.Shared.config)
 
-local POST_THICKNESS = 0.6
-local NET_DEPTH = 4
+local WHITE = Color3.fromRGB(245, 245, 245)
 
 local Pitch = {}
 
@@ -34,7 +33,8 @@ local function part(
 	return p
 end
 
-function Pitch.build(): Model
+-- `assets` is ReplicatedStorage.Assets from Assets.load().
+function Pitch.build(assets: Folder): Model
 	local old = workspace:FindFirstChild("Pitch")
 	if old then
 		old:Destroy()
@@ -45,8 +45,7 @@ function Pitch.build(): Model
 	folder.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 	folder.Name = "Pitch"
 
-	local w, h, t = config.goalWidth, config.goalHeight, POST_THICKNESS
-	local white = Color3.new(1, 1, 1)
+	local white = WHITE
 
 	part(folder, "Grass", Vector3.new(160, 1, 140), CFrame.new(0, -0.5, 30), Color3.fromRGB(58, 125, 52), {
 		Material = Enum.Material.Grass,
@@ -64,16 +63,9 @@ function Pitch.build(): Model
 		}
 	)
 
-	part(folder, "LeftPost", Vector3.new(t, h, t), CFrame.new(-w / 2 - t / 2, h / 2, 0), white)
-	part(folder, "RightPost", Vector3.new(t, h, t), CFrame.new(w / 2 + t / 2, h / 2, 0), white)
-	part(folder, "Crossbar", Vector3.new(w + 2 * t, t, t), CFrame.new(0, h + t / 2, 0), white)
-
-	local net = { Transparency = 0.6, CanCollide = false }
-	local grey = Color3.fromRGB(220, 220, 220)
-	part(folder, "NetBack", Vector3.new(w, h, 0.1), CFrame.new(0, h / 2, -NET_DEPTH), grey, net)
-	part(folder, "NetTop", Vector3.new(w, 0.1, NET_DEPTH), CFrame.new(0, h, -NET_DEPTH / 2), grey, net)
-	part(folder, "NetLeft", Vector3.new(0.1, h, NET_DEPTH), CFrame.new(-w / 2, h / 2, -NET_DEPTH / 2), grey, net)
-	part(folder, "NetRight", Vector3.new(0.1, h, NET_DEPTH), CFrame.new(w / 2, h / 2, -NET_DEPTH / 2), grey, net)
+	local goal = (assets:WaitForChild("Goal") :: Model):Clone()
+	goal:PivotTo(CFrame.identity)
+	goal.Parent = folder
 
 	folder.Parent = workspace
 	return folder

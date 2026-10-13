@@ -34,10 +34,18 @@ local config = {
 	goalHeight = 8,
 	penaltyDistance = 36,
 	ballFlightTime = 0.6,
-	keeperDiveTime = 0.35,
+	keeperDiveTime = 0.45,
 	resultHoldTime = 1.4,
 	aiKickDelay = 2.5,
 	powerBarCyclesPerSecond = 0.8,
+
+	-- Mesh models built by assets/source/build_models.py and uploaded with
+	-- scripts/upload.luau. Owned by the game's creator so the server can load them.
+	assetIds = {
+		Ball = 93558228140246,
+		Goal = 93200732902848,
+		Keeper = 103543688356323,
+	},
 
 	shooters = {
 		{ name = "Striker", description = "Hits it hard, sometimes too hard.", accuracy = 60, strength = 85 },
