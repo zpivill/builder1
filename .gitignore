@@ -2,3 +2,12 @@ build/
 *.rbxl
 *.rbxlx
 *.lock
+
+# Secrets - never commit
+.env
+.env.*
+*.env
+*.key
+*.pem
+secrets/
+.claude/settings.local.json
