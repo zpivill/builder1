@@ -1,19 +1,21 @@
 -- Every message between client and server. The server creates these; the
 -- client waits for them.
 --
--- Ready       client -> server  ()                          client loaded, send state
--- StartMatch  client -> server  { shooter, keeper }         preset indices (validated);
---                                                           only while picking/finished
--- Kick        client -> server  { column, height, power }   player's shot (validated)
--- MatchState  server -> client  { phase, state?, lineups? } phase is "picking" |
---                                                           "playing" | "finished"
--- KickResult  server -> client  Session.KickResult          every kick, player and AI;
---                                                           the last one has .summary
+-- Ready       client -> server  ()                          client loaded; reply with MatchState
+-- Choose      client -> server  shot { column, height, power } from the shooter, or
+--                               dive { column, height } from the keeper (validated);
+--                               only while phase is "choosing"
+-- Rematch     client -> server  ()                          only while phase is "finished"
+-- MatchState  server -> client  { phase, you, names, characters, roles, deadline,
+--                                 chosen, state, summary, rematch }
+--                               phase: "waiting" | "choosing" | "playing" | "finished"
+-- KickResult  server -> client  Duel.KickResult             both players; the last kick
+--                                                           carries .summary
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAMES = { "Ready", "StartMatch", "Kick", "MatchState", "KickResult" }
+local NAMES = { "Ready", "Choose", "Rematch", "MatchState", "KickResult" }
 local FOLDER_NAME = "Remotes"
 
 local Remotes = {}

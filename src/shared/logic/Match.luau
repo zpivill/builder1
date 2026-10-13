@@ -1,15 +1,16 @@
--- Match state machine: alternating kicks (player first), regulation rounds,
--- early finish when one side can't catch up, then sudden death.
+-- Match state machine: alternating kicks (p1 first), regulation rounds,
+-- early finish when one side can't catch up, then sudden death. A side that
+-- leaves forfeits.
 
 local Shot = require("./Shot")
 local config = require("../config")
 
-export type Side = "player" | "ai"
+export type Side = "p1" | "p2"
 export type State = {
 	nextSide: Side,
 	round: number,
-	scores: { player: number, ai: number },
-	taken: { player: number, ai: number },
+	scores: { p1: number, p2: number },
+	taken: { p1: number, p2: number },
 	suddenDeath: boolean,
 	finished: boolean,
 	winner: Side?,
@@ -18,9 +19,10 @@ export type State = {
 export type Match = {
 	recordKick: (self: Match, outcome: Shot.Outcome) -> State,
 	getState: (self: Match) -> State,
+	forfeit: (self: Match, side: Side) -> State,
 	_rounds: number,
-	_scores: { player: number, ai: number },
-	_taken: { player: number, ai: number },
+	_scores: { p1: number, p2: number },
+	_taken: { p1: number, p2: number },
 	_next: Side,
 	_winner: Side?,
 }
@@ -33,9 +35,9 @@ Match.__index = Match
 function Match.new(rounds: number?): Match
 	local self = {
 		_rounds = rounds or config.rounds,
-		_scores = { player = 0, ai = 0 },
-		_taken = { player = 0, ai = 0 },
-		_next = "player" :: Side,
+		_scores = { p1 = 0, p2 = 0 },
+		_taken = { p1 = 0, p2 = 0 },
+		_next = "p1" :: Side,
 		_winner = nil :: Side?,
 	}
 	return (setmetatable(self, Match) :: any) :: Match
@@ -43,16 +45,16 @@ end
 
 local function checkWinner(self: Match): Side?
 	local s, t, n = self._scores, self._taken, self._rounds
-	if t.player <= n and t.ai <= n then
+	if t.p1 <= n and t.p2 <= n then
 		-- Regulation: finished as soon as one side can't catch up.
-		if s.player + (n - t.player) < s.ai then
-			return "ai"
-		elseif s.ai + (n - t.ai) < s.player then
-			return "player"
+		if s.p1 + (n - t.p1) < s.p2 then
+			return "p2"
+		elseif s.p2 + (n - t.p2) < s.p1 then
+			return "p1"
 		end
-	elseif t.player == t.ai and s.player ~= s.ai then
+	elseif t.p1 == t.p2 and s.p1 ~= s.p2 then
 		-- Sudden death: decided after each complete pair.
-		return if s.player > s.ai then "player" else "ai"
+		return if s.p1 > s.p2 then "p1" else "p2"
 	end
 	return nil
 end
@@ -78,8 +80,20 @@ function Match.recordKick(self: Match, outcome: Shot.Outcome): State
 	if outcome == "GOAL" then
 		self._scores[side] += 1
 	end
-	self._next = if side == "player" then "ai" else "player"
+	self._next = Match.other(side)
 	self._winner = checkWinner(self)
+	return self:getState()
+end
+
+function Match.other(side: Side): Side
+	return if side == "p1" then "p2" else "p1"
+end
+
+-- The side that leaves loses; the other side wins straight away.
+function Match.forfeit(self: Match, side: Side): State
+	if self._winner == nil then
+		self._winner = Match.other(side)
+	end
 	return self:getState()
 end
 

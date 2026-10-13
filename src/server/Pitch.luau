@@ -47,7 +47,7 @@ function Pitch.build(assets: Folder): Model
 
 	local white = WHITE
 
-	part(folder, "Grass", Vector3.new(160, 1, 140), CFrame.new(0, -0.5, 30), Color3.fromRGB(58, 125, 52), {
+	part(folder, "Grass", Vector3.new(800, 1, 800), CFrame.new(0, -0.5, 30), Color3.fromRGB(58, 125, 52), {
 		Material = Enum.Material.Grass,
 	})
 	part(folder, "GoalLine", Vector3.new(80, 0.05, 0.4), CFrame.new(0, 0.02, 0), white)
@@ -66,6 +66,23 @@ function Pitch.build(assets: Folder): Model
 	local goal = (assets:WaitForChild("Goal") :: Model):Clone()
 	goal:PivotTo(CFrame.identity)
 	goal.Parent = folder
+
+	-- The place's default Baseplate and SpawnLocation would show through the
+	-- pitch and sit in the goal mouth. Hide them for this session only.
+	for _, name in { "Baseplate", "SpawnLocation" } do
+		local leftover = workspace:FindFirstChild(name)
+		if leftover and leftover:IsA("BasePart") then
+			leftover.Transparency = 1
+			leftover.CanCollide = false
+			leftover.CastShadow = false
+			if leftover:IsA("SpawnLocation") then
+				local decal = leftover:FindFirstChildOfClass("Decal")
+				if decal then
+					decal.Transparency = 1
+				end
+			end
+		end
+	end
 
 	folder.Parent = workspace
 	return folder

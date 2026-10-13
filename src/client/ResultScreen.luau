@@ -1,4 +1,4 @@
--- End-of-match panel: winner, score, kick dots, stats and a Play again button.
+-- End-of-match panel: winner, score, kick dots, stats and a Rematch button.
 
 local Players = game:GetService("Players")
 
@@ -20,7 +20,9 @@ local ResultScreen = {}
 
 local gui: ScreenGui
 local content: Frame
-local onPlayAgain: () -> ()
+local onRematch: () -> ()
+local againButton: TextButton
+local waitingLabel: TextLabel
 
 local function corner(parent: Instance, radius: number)
 	local c = Instance.new("UICorner")
@@ -65,8 +67,8 @@ local function dots(parent: Instance, label: string, kicks: { string }, y: numbe
 	end
 end
 
-function ResultScreen.init(playAgainHandler: () -> ())
-	onPlayAgain = playAgainHandler
+function ResultScreen.init(rematchHandler: () -> ())
+	onRematch = rematchHandler
 
 	gui = Instance.new("ScreenGui")
 	gui.Name = "ResultScreen"
@@ -92,62 +94,87 @@ function ResultScreen.init(playAgainHandler: () -> ())
 	content.Parent = panel
 
 	local again = Instance.new("TextButton")
-	again.Name = "PlayAgain"
+	againButton = again
+	again.Name = "Rematch"
 	again.AnchorPoint = Vector2.new(0.5, 1)
 	again.Position = UDim2.new(0.5, 0, 1, -14)
 	again.Size = UDim2.fromOffset(200, 40)
 	again.BackgroundColor3 = ACCENT
 	again.Font = FONT
-	again.Text = "PLAY AGAIN"
+	again.Text = "REMATCH"
 	again.TextSize = 18
 	again.TextColor3 = PANEL_COLOR
 	corner(again, 8)
 	again.Parent = panel
 	again.Activated:Connect(function()
-		gui.Enabled = false
-		onPlayAgain()
+		onRematch()
 	end)
+
+	waitingLabel = text(panel, "", UDim2.new(1, 0, 0, 40), UDim2.new(0, 0, 1, -54), 16, {
+		Font = BODY_FONT,
+		Visible = false,
+	})
 
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 end
 
-function ResultScreen.show(summary: any)
+-- names: p1/p2 display names; you: this client's slot (nil for spectators).
+function ResultScreen.show(summary: any, names: { [string]: string? }, you: string?)
 	content:ClearAllChildren()
-	local won = summary.winner == "player"
+	local function name(side: string): string
+		return if side == you then "You" else (names[side] or "Opponent")
+	end
+	local winner = summary.winner
+	local title = if winner == nil
+		then "MATCH OVER"
+		elseif winner == you then "YOU WIN!"
+		elseif you then "YOU LOSE"
+		else `{name(winner)} WINS`
+	local won = winner ~= nil and winner == you
 
-	text(content, if won then "YOU WIN!" else "AI WINS", UDim2.new(1, 0, 0, 44), UDim2.fromOffset(0, 14), 36, {
-		TextColor3 = if won then GOAL_COLOR else FAIL_COLOR,
+	text(content, title, UDim2.new(1, 0, 0, 44), UDim2.fromOffset(0, 14), 36, {
+		TextColor3 = if won then GOAL_COLOR elseif you then FAIL_COLOR else Color3.new(1, 1, 1),
 	})
 	text(
 		content,
-		`YOU {summary.scores.player} - {summary.scores.ai} AI`,
-		UDim2.new(1, 0, 0, 30),
-		UDim2.fromOffset(0, 58),
-		24
+		`{name("p1")} {summary.scores.p1} - {summary.scores.p2} {name("p2")}`,
+		UDim2.new(1, -20, 0, 30),
+		UDim2.fromOffset(10, 58),
+		22,
+		{ TextScaled = true }
 	)
 	if summary.suddenDeath then
-		text(content, "after sudden death", UDim2.new(1, 0, 0, 18), UDim2.fromOffset(0, 86), 14, {
+		text(content, "after sudden death", UDim2.new(1, 0, 0, 18), UDim2.fromOffset(0, 88), 14, {
 			Font = BODY_FONT,
 			TextColor3 = ACCENT,
 		})
 	end
 
-	dots(content, "YOU", summary.player.kicks, 116)
-	dots(content, "AI", summary.ai.kicks, 140)
+	dots(content, name("p1"), summary.p1.kicks, 116)
+	dots(content, name("p2"), summary.p2.kicks, 140)
 
-	text(content, "YOU", UDim2.fromOffset(60, 18), UDim2.new(1, -150, 0, 176), 14)
-	text(content, "AI", UDim2.fromOffset(60, 18), UDim2.new(1, -90, 0, 176), 14)
+	text(content, name("p1"), UDim2.fromOffset(60, 18), UDim2.new(1, -150, 0, 176), 13, { TextScaled = true })
+	text(content, name("p2"), UDim2.fromOffset(60, 18), UDim2.new(1, -90, 0, 176), 13, { TextScaled = true })
 	for i, stat in STAT_ROWS do
 		local y = 176 + i * 24
 		text(content, stat[1], UDim2.fromOffset(200, 18), UDim2.fromOffset(30, y), 15, {
 			Font = BODY_FONT,
 			TextXAlignment = Enum.TextXAlignment.Left,
 		})
-		text(content, tostring(summary.player[stat[2]]), UDim2.fromOffset(60, 18), UDim2.new(1, -150, 0, y), 15)
-		text(content, tostring(summary.ai[stat[2]]), UDim2.fromOffset(60, 18), UDim2.new(1, -90, 0, y), 15)
+		text(content, tostring(summary.p1[stat[2]]), UDim2.fromOffset(60, 18), UDim2.new(1, -150, 0, y), 15)
+		text(content, tostring(summary.p2[stat[2]]), UDim2.fromOffset(60, 18), UDim2.new(1, -90, 0, y), 15)
 	end
 
+	ResultScreen.setWaiting(nil)
 	gui.Enabled = true
+end
+
+-- Replaces the Rematch button with a message (e.g. waiting for the other
+-- player), or brings the button back when text is nil.
+function ResultScreen.setWaiting(message: string?)
+	againButton.Visible = message == nil
+	waitingLabel.Visible = message ~= nil
+	waitingLabel.Text = message or ""
 end
 
 function ResultScreen.hide()

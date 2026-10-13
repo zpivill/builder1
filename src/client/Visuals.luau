@@ -1,25 +1,20 @@
--- Local copies of the ball and keeper meshes, plus the fixed camera. Purely visual:
--- the outcome always comes from the server.
+-- The ball, both players' avatars (posed by AvatarRig) and the camera. Purely
+-- visual: outcomes always come from the server.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
-local Keeper = require(script.Parent.Keeper)
+local AvatarRig = require(script.Parent.AvatarRig)
 local ShotPath = require(ReplicatedStorage.Shared.logic.ShotPath)
+local Stage = require(ReplicatedStorage.Shared.Stage)
 local config = require(ReplicatedStorage.Shared.config)
 
-local BALL_SIZE = 1.4
-local KEEPER_Z = 1
 local BALL_SPIN_TURNS = 2
-
-local PLAYER_KIT = Color3.fromRGB(40, 110, 230)
-local AI_KIT = Color3.fromRGB(230, 70, 50)
 
 local Visuals = {}
 
 local ball: Model
-local keeper: Model
-local keeperRig: any
+local rigs: { [Model]: any } = {}
 
 -- Runs onStep(alpha) every frame while a tween eases alpha from 0 to 1.
 local function animate(info: TweenInfo, onStep: (alpha: number) -> ()): Tween
@@ -41,75 +36,109 @@ local function tweenPivot(model: Model, info: TweenInfo, goal: CFrame): Tween
 	end)
 end
 
-local function spotCFrame(): CFrame
-	return CFrame.new(0, BALL_SIZE / 2, config.penaltyDistance)
-end
-
-local function keeperHome(): CFrame
-	return CFrame.new(0, 0, KEEPER_Z)
-end
-
 -- Point at depth `z` on the straight line from the spot through the goal-plane
 -- point (x, y). Keeps misses on the path ShotPath aimed them along, so wide
 -- shots pass outside the posts and high shots pass over the bar.
 local function alongShotLine(x: number, y: number, z: number): Vector3
-	local start = spotCFrame().Position
+	local start = Stage.BALL_SPOT
 	local through = Vector3.new(x, y, 0)
 	return start + (through - start) * ((start.Z - z) / start.Z)
+end
+
+local function rigFor(character: Model?): any
+	if not character or not character:FindFirstChild("HumanoidRootPart") then
+		return nil
+	end
+	local rig = rigs[character]
+	if not rig then
+		rig = AvatarRig.new(character)
+		rigs[character] = rig
+	end
+	return rig
 end
 
 function Visuals.init()
 	-- Mesh models loaded by the server (src/server/Assets.luau).
 	local assets = ReplicatedStorage:WaitForChild("Assets")
-	local folder = Instance.new("Folder")
-	folder.Name = "LocalVisuals"
 	ball = (assets:WaitForChild("Ball") :: Model):Clone()
-	ball.Parent = folder
-	keeper = (assets:WaitForChild("Keeper") :: Model):Clone()
-	keeper.Parent = folder
-	keeperRig = Keeper.new(keeper)
-	folder.Parent = workspace
-	Visuals.reset("player")
+	ball.Parent = workspace
+	ball:PivotTo(CFrame.new(Stage.BALL_SPOT))
 
-	local camera = workspace.CurrentCamera
-	camera.CameraType = Enum.CameraType.Scriptable
-	camera.FieldOfView = 50
-	camera.CFrame =
-		CFrame.lookAt(Vector3.new(0, 7, config.penaltyDistance + 14), Vector3.new(0, config.goalHeight / 2, 0))
+	workspace.CurrentCamera.FieldOfView = 50
+	Visuals.setCamera("shooter")
 end
 
-function Visuals.reset(side: string)
-	ball:PivotTo(spotCFrame())
-	keeperRig:reset(keeperHome())
-	-- The player's own keeper defends AI kicks.
-	local kitColor = if side == "ai" then PLAYER_KIT else AI_KIT
-	for _, p in keeper:GetDescendants() do
-		if p:IsA("BasePart") and p:GetAttribute("Kit") then
-			p.Color = kitColor
-		end
+-- Shooter view from behind the ball, keeper view from behind the goal.
+function Visuals.setCamera(view: string)
+	local camera = workspace.CurrentCamera
+	camera.CameraType = Enum.CameraType.Scriptable
+	if view == "keeper" then
+		-- Inside the goal just above and behind the keeper's head (under the
+		-- net roof), looking out at the shooter.
+		camera.CFrame = CFrame.lookAt(Vector3.new(0, 7.2, -1.2), Vector3.new(0, 3, config.penaltyDistance))
+	else
+		-- High and to the right so the shooter's own avatar doesn't block the goal.
+		camera.CFrame =
+			CFrame.lookAt(Vector3.new(4, 11, config.penaltyDistance + 18), Vector3.new(0, config.goalHeight / 2 - 1, 0))
 	end
 end
 
--- Animates one resolved kick. Yields until the ball has landed.
-function Visuals.playKick(result: any)
-	Visuals.reset(result.side)
+-- Places and poses every avatar for the current kick. `characters` maps
+-- p1/p2 to models; `roles` says who shoots and who keeps (nil while waiting).
+function Visuals.setScene(characters: { [string]: Model? }, roles: { shooter: string, keeper: string }?)
+	local alive = {}
+	for i, side in { "p1", "p2" } do
+		local character = characters[side]
+		local rig = rigFor(character)
+		if rig then
+			alive[character :: Model] = true
+			if roles and side == roles.keeper then
+				rig:keep(Stage.keeperHome(character :: Model))
+			elseif roles and side == roles.shooter then
+				rig:stand(Stage.shooterHome(character :: Model))
+			else
+				rig:stand(Stage.waitingSpot(character :: Model, i))
+			end
+		end
+	end
+	for character, rig in rigs do
+		if not alive[character] then
+			rig:destroy()
+			rigs[character] = nil
+		end
+	end
+	ball:PivotTo(CFrame.new(Stage.BALL_SPOT))
+end
+
+-- Animates one resolved kick: run-up, strike, keeper dive and ball flight.
+-- Yields until the ball has landed.
+function Visuals.playKick(result: any, shooterCharacter: Model?, keeperCharacter: Model?)
+	ball:PivotTo(CFrame.new(Stage.BALL_SPOT))
+	local shooterRig = rigFor(shooterCharacter)
+	local keeperRig = rigFor(keeperCharacter)
+
+	if shooterRig then
+		shooterRig:kick(Stage.shooterStrike(shooterCharacter :: Model))
+	end
+	task.wait(config.runUpTime)
 
 	local x, y = ShotPath.target(result.shot, result.outcome)
 	local z = if result.outcome == "GOAL"
 		then -1.5
-		elseif result.outcome == "SAVED" then KEEPER_Z + 1
+		elseif result.outcome == "SAVED" then Stage.KEEPER_Z + 1
 		elseif result.outcome == "MISSED" then -10
 		else 0
 	local finish = alongShotLine(x, y, z)
 
-	-- Keeper dives to the reported column; hands reach for that spot at the
-	-- shot's height (the ball itself when the keeper guessed right).
-	local _, aimY = ShotPath.aimPoint(result.shot.column, result.shot.height)
-	local reach = Vector3.new(ShotPath.diveX(result.dive), aimY, KEEPER_Z)
-	keeperRig:dive(reach, result.dive, result.shot.height, config.keeperDiveTime)
+	-- The keeper dives to the zone they chose; their hands go for that spot.
+	if keeperRig then
+		local _, diveY = ShotPath.aimPoint(result.dive.column, result.dive.height)
+		local reach = Vector3.new(ShotPath.diveX(result.dive.column), diveY, Stage.KEEPER_Z)
+		keeperRig:dive(reach, result.dive.column, result.dive.height)
+	end
 
 	-- Ball flies along the shot line, spinning forward.
-	local start = spotCFrame().Position
+	local start = Stage.BALL_SPOT
 	local flight = TweenInfo.new(config.ballFlightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	local tween = animate(flight, function(alpha)
 		local spin = CFrame.Angles(-math.pi * 2 * BALL_SPIN_TURNS * alpha, 0, 0)
@@ -119,7 +148,7 @@ function Visuals.playKick(result: any)
 
 	if result.outcome == "POST" or result.outcome == "SAVED" then
 		-- Rebound back toward the pitch.
-		local bounce = CFrame.new(finish.X * 1.2, BALL_SIZE / 2, 8)
+		local bounce = CFrame.new(finish.X * 1.2, Stage.BALL_RADIUS, 8)
 		tweenPivot(ball, TweenInfo.new(0.5, Enum.EasingStyle.Quad), bounce)
 	end
 end

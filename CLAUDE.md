@@ -6,6 +6,7 @@ Roblox game managed with Rojo; all code lives in files. Tools are pinned in `rok
 - `src/shared` → ReplicatedStorage.Shared (ModuleScripts used by both sides)
 - `src/server` → ServerScriptService.Server (`init.server.luau` entry)
 - `src/client` → StarterPlayer.StarterPlayerScripts.Client (`init.client.luau` entry)
+- `src/character` → StarterPlayer.StarterCharacterScripts (empty `Animate` replaces the default)
 - `tests/` → not synced. `*.spec.luau` files run under Lune via `tests/run.luau`. Only test pure-logic modules (no Roblox APIs).
 - `default.project.json` → Rojo mapping. `build/` is generated output.
 
@@ -18,6 +19,7 @@ Runs rojo build, selene lint, stylua format check, and Lune tests. Must pass bef
 ## Rules
 - Don't write source files with PowerShell `Set-Content`/`Out-File`; they add a BOM that breaks StyLua and Selene. Use the editor tools or Bash.
 - In Studio playtests, click UI by `instance_path`, not by screenshot coordinates; screenshots are offset by the top bar, so coordinate clicks miss.
+- After changing `default.project.json`, ask the user to restart `rojo serve`; Rojo does not pick up project-tree changes while running.
 
 ## Secrets
 - The Roblox Open Cloud API key lives only in the user-level env var `ROBLOX_API_KEY`. Never print, echo, log, or write it (or any part of it) to any file in the repo or into the conversation. Use it only through `scripts/upload.luau`. To check it, report only "set" or "missing".

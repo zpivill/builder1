@@ -1,0 +1,3 @@
+-- Replaces Roblox's default character Animate script. Avatars stand still
+-- during a match and are posed by src/client/AvatarRig.luau instead, so the
+-- default walk/idle animations must not run.

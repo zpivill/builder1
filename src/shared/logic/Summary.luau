@@ -5,10 +5,10 @@ local config = require("../config")
 export type SideStats = { goals: number, saved: number, missed: number, post: number, kicks: { string } }
 export type Summary = {
 	winner: string?,
-	scores: { player: number, ai: number },
+	scores: { p1: number, p2: number },
 	suddenDeath: boolean,
-	player: SideStats,
-	ai: SideStats,
+	p1: SideStats,
+	p2: SideStats,
 }
 
 local FIELD = { GOAL = "goals", SAVED = "saved", MISSED = "missed", POST = "post" }
@@ -17,8 +17,8 @@ local Summary = {}
 
 function Summary.build(history: { { side: string, outcome: string } }, winner: string?): Summary
 	local sides = {
-		player = { goals = 0, saved = 0, missed = 0, post = 0, kicks = {} },
-		ai = { goals = 0, saved = 0, missed = 0, post = 0, kicks = {} },
+		p1 = { goals = 0, saved = 0, missed = 0, post = 0, kicks = {} },
+		p2 = { goals = 0, saved = 0, missed = 0, post = 0, kicks = {} },
 	}
 	for _, kick in history do
 		local stats = sides[kick.side]
@@ -27,10 +27,10 @@ function Summary.build(history: { { side: string, outcome: string } }, winner: s
 	end
 	return {
 		winner = winner,
-		scores = { player = sides.player.goals, ai = sides.ai.goals },
-		suddenDeath = #sides.player.kicks > config.rounds or #sides.ai.kicks > config.rounds,
-		player = sides.player,
-		ai = sides.ai,
+		scores = { p1 = sides.p1.goals, p2 = sides.p2.goals },
+		suddenDeath = #sides.p1.kicks > config.rounds or #sides.p2.kicks > config.rounds,
+		p1 = sides.p1,
+		p2 = sides.p2,
 	}
 end
 
