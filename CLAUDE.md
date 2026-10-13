@@ -17,3 +17,6 @@ Runs rojo build, selene lint, stylua format check, and Lune tests. Must pass bef
 
 ## Secrets
 - The Roblox Open Cloud API key lives only in the user-level env var `ROBLOX_API_KEY`. Never print, echo, log, or write it (or any part of it) to any file in the repo or into the conversation. Use it only through `scripts/upload.luau`. To check it, report only "set" or "missing".
+
+When I correct you, or a mistake costs time, propose a one-line rule for this file
+with the reason. Wait for my approval before adding it.
