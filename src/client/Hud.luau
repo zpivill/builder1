@@ -18,6 +18,7 @@ local Hud = {}
 local gui: ScreenGui
 local scoreLabel: TextLabel
 local statusLabel: TextLabel
+local lineupLabel: TextLabel
 local resultLabel: TextLabel
 local dotRows: { [string]: Frame } = {}
 local controls: Frame
@@ -92,6 +93,7 @@ local function buildScore()
 	end
 
 	statusLabel = label(gui, "", UDim2.fromOffset(400, 30), UDim2.new(0.5, 0, 0, 106), 22)
+	lineupLabel = label(gui, "", UDim2.fromOffset(500, 20), UDim2.new(0.5, 0, 0, 134), 15)
 end
 
 local function buildControls()
@@ -260,6 +262,15 @@ function Hud.addDot(side: string, outcome: string)
 	dot.LayoutOrder = #row:GetChildren()
 	corner(dot, 8)
 	dot.Parent = row
+end
+
+function Hud.setVisible(on: boolean)
+	gui.Enabled = on
+end
+
+function Hud.setLineups(lineups: any)
+	local p, a = lineups.player, lineups.ai
+	lineupLabel.Text = `{p.shooter} + {p.keeper}  vs  {a.shooter} + {a.keeper}`
 end
 
 function Hud.showResult(text: string, color: Color3)

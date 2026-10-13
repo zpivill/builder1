@@ -1,7 +1,7 @@
 -- Every tuning number for the penalty shootout. See docs/design.md for meanings.
 
-export type Shooter = { name: string, accuracy: number, strength: number }
-export type Keeper = { name: string, reach: number, reaction: number }
+export type Shooter = { name: string, description: string, accuracy: number, strength: number }
+export type Keeper = { name: string, description: string, reach: number, reaction: number }
 
 local config = {
 	rounds = 5,
@@ -40,13 +40,13 @@ local config = {
 	powerBarCyclesPerSecond = 0.8,
 
 	shooters = {
-		{ name = "Striker", accuracy = 60, strength = 85 },
-		{ name = "Playmaker", accuracy = 85, strength = 55 },
+		{ name = "Striker", description = "Hits it hard, sometimes too hard.", accuracy = 60, strength = 85 },
+		{ name = "Playmaker", description = "Places it neatly, rarely misses.", accuracy = 85, strength = 55 },
 	} :: { Shooter },
 
 	keepers = {
-		{ name = "Wall", reach = 85, reaction = 55 },
-		{ name = "Cat", reach = 60, reaction = 85 },
+		{ name = "Wall", description = "Huge reach, slow to read the shot.", reach = 85, reaction = 55 },
+		{ name = "Cat", description = "Reads the shooter, shorter reach.", reach = 60, reaction = 85 },
 	} :: { Keeper },
 }
 

@@ -1,15 +1,19 @@
 -- Every message between client and server. The server creates these; the
 -- client waits for them.
 --
--- Ready       client -> server  ()                         client loaded, send state
--- Kick        client -> server  { column, height, power }  player's shot (validated)
--- MatchState  server -> client  Match.State                full state on start/ready
--- KickResult  server -> client  Session.KickResult         every kick, player and AI
+-- Ready       client -> server  ()                          client loaded, send state
+-- StartMatch  client -> server  { shooter, keeper }         preset indices (validated);
+--                                                           only while picking/finished
+-- Kick        client -> server  { column, height, power }   player's shot (validated)
+-- MatchState  server -> client  { phase, state?, lineups? } phase is "picking" |
+--                                                           "playing" | "finished"
+-- KickResult  server -> client  Session.KickResult          every kick, player and AI;
+--                                                           the last one has .summary
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAMES = { "Ready", "Kick", "MatchState", "KickResult" }
+local NAMES = { "Ready", "StartMatch", "Kick", "MatchState", "KickResult" }
 local FOLDER_NAME = "Remotes"
 
 local Remotes = {}

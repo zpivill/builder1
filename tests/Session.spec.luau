@@ -93,4 +93,38 @@ return function(t)
 			t.expect(a[i], b[i])
 		end
 	end)
+	t.test("records history in order and summarises the final kick", function()
+		local s = Session.new({ seed = 11 })
+		local log = playToEnd(s)
+		local history = s:getHistory()
+		t.expect(#history, #log)
+		for i, kick in history do
+			t.expect(kick.outcome, log[i])
+			t.expect(kick.side, if i % 2 == 1 then "player" else "ai")
+			t.expect(kick.summary ~= nil, i == #history)
+		end
+		local summary = history[#history].summary
+		t.expect(summary.winner, s:getState().winner)
+		t.expect(summary.scores.player, s:getState().scores.player)
+		t.expect(#summary.player.kicks + #summary.ai.kicks, #history)
+	end)
+
+	t.test("uses the chosen presets", function()
+		local function aiSaves(keeper)
+			local saves = 0
+			for seed = 1, 40 do
+				local s = Session.new({ seed = seed, playerKeeper = keeper })
+				playToEnd(s)
+				for _, kick in s:getHistory() do
+					if kick.side == "ai" and kick.outcome == "SAVED" then
+						saves += 1
+					end
+				end
+			end
+			return saves
+		end
+		local great = aiSaves({ name = "Great", description = "", reach = 100, reaction = 100 })
+		local poor = aiSaves({ name = "Poor", description = "", reach = 1, reaction = 1 })
+		t.expect(great > poor, true)
+	end)
 end

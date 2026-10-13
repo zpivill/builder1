@@ -11,6 +11,8 @@ sudden death. Player aims and sets power; the keeper dives based on its attribut
 - Player kicks resolve against the opponent's keeper; AI kicks resolve against
   the player's side keeper.
 - AI shots pick aim at random and power from a config-driven range.
+- Before every match the player picks one preset shooter and one preset keeper;
+  the AI gets the presets the player did not pick.
 - Player as keeper is out of scope for v1.
 
 ## Rules
@@ -78,7 +80,8 @@ M1 Logic only: tests pass for resolveShot (same seed = same result; higher
 M2 Playable: pitch/goal/ball/keeper from simple parts; player can aim, set power,
    take a kick; server resolves; ball moves; score HUD updates; a full match
    can be played to a winner.
-M3 Polish: pick from the preset players, result screen, restart button.
+M3 Polish: pick screen before every match, result screen (score, kick dots,
+   per-side stats), Play again returns to the pick screen with last picks kept.
 
 ## Out of scope for v1
 Multiplayer, saving, real models/animations, sound, gacha, multiple stadiums,
