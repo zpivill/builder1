@@ -15,6 +15,9 @@ Roblox game managed with Rojo; all code lives in files. Tools are pinned in `rok
 ```
 Runs rojo build, selene lint, stylua format check, and Lune tests. Must pass before committing. Fix formatting with `stylua src tests`.
 
+## Rules
+- Don't write source files with PowerShell `Set-Content`/`Out-File`; they add a BOM that breaks StyLua and Selene. Use the editor tools or Bash.
+
 ## Secrets
 - The Roblox Open Cloud API key lives only in the user-level env var `ROBLOX_API_KEY`. Never print, echo, log, or write it (or any part of it) to any file in the repo or into the conversation. Use it only through `scripts/upload.luau`. To check it, report only "set" or "missing".
 
